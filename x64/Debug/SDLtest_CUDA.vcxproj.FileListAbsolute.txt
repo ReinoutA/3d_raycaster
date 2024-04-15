@@ -1,0 +1,2 @@
+C:\Users\vanni\source\repos\SDLtest_CUDA\x64\Debug\SDLtest_CUDA.exe
+C:\Users\vanni\source\repos\SDLtest_CUDA\x64\Debug\SDLtest_CUDA.pdb
