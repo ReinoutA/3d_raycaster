@@ -254,7 +254,7 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("muur.jpg");
+    getImage("doom.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;

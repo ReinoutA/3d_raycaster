@@ -1,0 +1,56 @@
+# Visual Studio generated files
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ReSharper specific
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Ll]og/
+[Oo]bj/
+[Bb]uild/
+
+# Visual Studio cache files
+.ipch/
+*.aps
+*.ncb
+*.opendb
+*.sdf
+*.cachefile
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUNIT
+*.VisualState.xml
+TestResult.xml
+
+# Test Results
+[Tt]est[Rr]esult*
+
+# ReSharper added files
+_ReSharper*/
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates

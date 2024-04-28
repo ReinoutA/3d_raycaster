@@ -1,2 +1,3 @@
 C:\Users\vanni\source\repos\SDLtest_CUDA\x64\Debug\SDLtest_CUDA.exe
 C:\Users\vanni\source\repos\SDLtest_CUDA\x64\Debug\SDLtest_CUDA.pdb
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\x64\Debug\SDLtest_CUDA.exe
