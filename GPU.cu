@@ -1,4 +1,3 @@
-﻿/*
 #include <SDL.h>
 #include <iostream>
 #include <vector>
@@ -8,8 +7,8 @@
 #include <SDL_image.h>
 #include <stdio.h>
 #include <sstream>
+#include <cuda_runtime.h>
 #undef main
-
 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
@@ -20,9 +19,9 @@ Uint32* img;
 
 int frame_rate = 0;
 double elapsed_time = 0.0;
-int world_map[5][5];
+__constant__ int world_map[5][5];
 
-int world_map_len = 5;
+const int world_map_len = 5;
 float p_speler[] = { 3, 3 };
 float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
 float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
@@ -115,7 +114,7 @@ void raycast(int column) {
     float d_horizontaal = 0.0;
     float d_verticaal = 0.0;
 
-    // Bereken de coördinaten van r_cameravlak
+    // Bereken de co�rdinaten van r_cameravlak
     float r_straal_x = get_r_straal_x(column);
     float r_straal_y = get_r_straal_y(column);
 
@@ -291,4 +290,3 @@ int main(int argc, char* args[]) {
 
     return 0;
 }
-*/
