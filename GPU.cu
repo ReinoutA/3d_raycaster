@@ -269,12 +269,26 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("doom.png");
+    getImage("muur.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;
 
+    // GPU
+    float* d_p_speler;
+    float* d_r_speler;
+    float* d_r_cameravlak;
+    Uint32* img_gpu;
+    Uint32* screen_gpu;
+    cudaMalloc((void**)&img_gpu, sizeof(Uint32) * IMG_SIZE * IMG_SIZE);
+    cudaMemcpy(img_gpu, img, sizeof(Uint32) * IMG_SIZE * IMG_SIZE, cudaMemcpyHostToDevice);
+
+    cudaMalloc((void**)&d_r_cameravlak, sizeof(float) * 2);
     auto start_time = std::chrono::high_resolution_clock::now();
+
+    int block_size = 512; // TODO: kan dit tot schermbreedte?
+    int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1 / block_size;
+    std::cout << num_blocks;
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
@@ -284,28 +298,16 @@ int main(int argc, char* args[]) {
 
         handleMovement(e);
 
+        // clear screen
         for (int pixel_idx = 0; pixel_idx < SCREEN_WIDTH * SCREEN_HEIGHT; ++pixel_idx) {
             ((Uint32*)screenSurface->pixels)[pixel_idx] = 0xFFFFFFFF;
         }
 
-
-
-        // GPU
-        Uint32* img_gpu;
-        Uint32* screen_gpu;
-        cudaMalloc((void**)&img_gpu, sizeof(Uint32) * IMG_SIZE * IMG_SIZE);
-        cudaMemcpy(img_gpu, img, sizeof(Uint32) * IMG_SIZE * IMG_SIZE, cudaMemcpyHostToDevice);
-        cudaMalloc((void**)&screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT);
-
-        // Define device arrays for p_speler and r_speler
-        float* d_p_speler;
-        float* d_r_speler;
-        float* d_r_cameravlak;
-
         // Allocate memory for device arrays
+        cudaMalloc((void**)&screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT);
         cudaMalloc((void**)&d_p_speler, sizeof(float) * 2);
         cudaMalloc((void**)&d_r_speler, sizeof(float) * 2);
-        cudaMalloc((void**)&d_r_cameravlak, sizeof(float) * 2);
+        
         // Copy data from host to device
         cudaMemcpy(d_p_speler, p_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
         cudaMemcpy(d_r_speler, r_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
@@ -314,10 +316,7 @@ int main(int argc, char* args[]) {
         // Copy the contents of screenSurface->pixels to screen_gpu
         cudaMemcpy(screen_gpu, screenSurface->pixels, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyHostToDevice);
 
-        int block_size = 256; // TODO: kan dit tot schermbreedte?
-        int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1 / block_size;
-
-        raycast_kernel << <num_blocks, block_size >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
+        raycast_kernel <<<num_blocks, block_size >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
         // Copy the updated screen buffer back to screenSurface->pixels
         cudaMemcpy(screenSurface->pixels, screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyDeviceToHost);
@@ -325,7 +324,7 @@ int main(int argc, char* args[]) {
         // Update the window surface
         SDL_UpdateWindowSurface(window);
 
-        cudaFree(img_gpu);
+      
         cudaFree(screen_gpu);
         cudaFree(d_p_speler);
         cudaFree(d_r_speler);
@@ -336,6 +335,7 @@ int main(int argc, char* args[]) {
 
         calculateAndSetFPSTitle(deltaTime.count());
     }
+    cudaFree(img_gpu);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
