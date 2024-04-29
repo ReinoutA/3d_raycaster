@@ -68,12 +68,12 @@ void getImage(const char* file) {
     }
 }
 
-float get_r_straal_x(int column) {
-    return r_speler[0] + (2 * (column / static_cast<double>(SCREEN_WIDTH)) - 1) * r_cameravlak[0];
+__device__ float get_r_straal_x(int column, float* d_r_speler, float* d_r_cameravlak) {
+    return d_r_speler[0] + (2 * (column / static_cast<double>(SCREEN_WIDTH)) - 1) * d_r_cameravlak[0];
 }
 
-float get_r_straal_y(int column) {
-    return r_speler[1] + (2 * (column / static_cast<double>(SCREEN_WIDTH)) - 1) * r_cameravlak[1];
+__device__ float get_r_straal_y(int column, float* d_r_speler, float* d_r_cameravlak) {
+    return d_r_speler[1] + (2 * (column / static_cast<double>(SCREEN_WIDTH)) - 1) * d_r_cameravlak[1];
 }
 
 __device__ inline int maximum(int a, int b) {
@@ -85,7 +85,7 @@ __device__ inline int minimum(int a, int b) {
 }
 
 
-__device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float i_y) {
+__device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float i_y, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu) {
     // Bereken de hoogte van het te renderen deel van de afbeelding op basis van de muurafstand
     int img_height_screen = static_cast<int>((SCREEN_HEIGHT / d_muur));
     float img_scale = (float)IMG_SIZE / img_height_screen;
@@ -112,28 +112,29 @@ __device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float
         // Bereken de index op het scherm
         int screen_idx = kolom + SCREEN_WIDTH * screen_y;
         // Kopieer de pixelwaarde van de afbeelding naar het scherm
-        ((Uint32*)screenSurface->pixels)[screen_idx] = img[img_idx];
+        screen_gpu[screen_idx] = img_gpu[img_idx];
     }
 }
 
-__global__ void raycast_kernel() {
+
+__global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int column = threadIdx.x + blockDim.x * blockIdx.x;
-    if(SCREEN_WIDTH -1 >= column) {
+    if (SCREEN_WIDTH - 1 >= column) {
         float delta_v = 0.0;
         float delta_h = 0.0;
         float d_horizontaal = 0.0;
         float d_verticaal = 0.0;
 
         // Bereken de coördinaten van r_cameravlak
-        float r_straal_x = get_r_straal_x(column);
-        float r_straal_y = get_r_straal_y(column);
+        float r_straal_x = get_r_straal_x(column, d_r_speler, d_r_cameravlak);
+        float r_straal_y = get_r_straal_y(column, d_r_speler, d_r_cameravlak);
 
         delta_v = (r_straal_x == 0) ? 1e30 : 1 / std::abs(r_straal_x);
         delta_h = (r_straal_y == 0) ? 1e30 : 1 / std::abs(r_straal_y);
 
         // Bereken d_horizontaal en d_verticaal
-        d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
-        d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+        d_horizontaal = (r_straal_y < 0) ? (d_p_speler[1] - std::floor(d_p_speler[1])) * delta_h : (1 - d_p_speler[1] + std::floor(d_p_speler[1])) * delta_h;
+        d_verticaal = (r_straal_x < 0) ? (d_p_speler[0] - std::floor(d_p_speler[0])) * delta_v : (1 - d_p_speler[0] + std::floor(d_p_speler[0])) * delta_v;
 
         bool hit = false;
         int intersectie = 1;
@@ -144,8 +145,8 @@ __global__ void raycast_kernel() {
 
         while (!hit) {
             if (d_verticaal >= d_horizontaal) {
-                i_x = r_straal_x * d_horizontaal + p_speler[0];
-                i_y = r_straal_y * d_horizontaal + p_speler[1];
+                i_x = r_straal_x * d_horizontaal + d_p_speler[0];
+                i_y = r_straal_y * d_horizontaal + d_p_speler[1];
 
                 if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
                     d_muur = 100;
@@ -153,7 +154,7 @@ __global__ void raycast_kernel() {
                 }
                 else {
                     if (world_map[static_cast<int>(std::floor(i_x))][static_cast<int>(std::round(i_y) + ((r_straal_y < 0) ? -1.0 : 0.0))] > 0) {
-                        d_muur = d_horizontaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                        d_muur = d_horizontaal * (r_straal_x * d_r_speler[0] + r_straal_y * d_r_speler[1]);
                         hit = true;
                     }
                 }
@@ -171,7 +172,7 @@ __global__ void raycast_kernel() {
                 }
                 else {
                     if (world_map[static_cast<int>(std::round(i_x) + ((r_straal_x < 0) ? -1.0 : 0.0))][static_cast<int>(std::floor(i_y))] > 0) {
-                        d_muur = d_verticaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                        d_muur = d_verticaal * (r_straal_x * d_r_speler[0] + r_straal_y * d_r_speler[1]);
                         intersectie = 0;
                         hit = true;
                     }
@@ -181,9 +182,10 @@ __global__ void raycast_kernel() {
             }
 
         }
-        renderImageKolom(column, d_muur, intersectie, i_x, i_y);
+        renderImageKolom(column, d_muur, intersectie, i_x, i_y, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu);
     }
 }
+
 
 // Functie om spelerbeweging te verwerken
 void handleMovement(SDL_Event& e) {
@@ -284,14 +286,45 @@ int main(int argc, char* args[]) {
             ((Uint32*)screenSurface->pixels)[pixel_idx] = 0xFFFFFFFF;
         }
 
+        // GPU
+        Uint32* img_gpu;
+        Uint32* screen_gpu;
+        cudaMalloc((void**)&img_gpu, sizeof(Uint32) * IMG_SIZE * IMG_SIZE);
+        cudaMemcpy(img_gpu, img, sizeof(Uint32) * IMG_SIZE * IMG_SIZE, cudaMemcpyHostToDevice);
+        cudaMalloc((void**)&screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT);
+
+        // Define device arrays for p_speler and r_speler
+        float* d_p_speler;
+        float* d_r_speler;
+        float* d_r_cameravlak;
+
+        // Allocate memory for device arrays
+        cudaMalloc((void**)&d_p_speler, sizeof(float) * 2);
+        cudaMalloc((void**)&d_r_speler, sizeof(float) * 2);
+        cudaMalloc((void**)&d_r_cameravlak, sizeof(float) * 2);
+        // Copy data from host to device
+        cudaMemcpy(d_p_speler, p_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_r_speler, r_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
+        cudaMemcpy(d_r_cameravlak, r_cameravlak, sizeof(float) * 2, cudaMemcpyHostToDevice);
+
+        // Copy the contents of screenSurface->pixels to screen_gpu
+        cudaMemcpy(screen_gpu, screenSurface->pixels, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyHostToDevice);
+
         int block_size = 256; // TODO: kan dit tot schermbreedte?
-        int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1/block_size;
+        int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1 / block_size;
 
-        raycast_kernel<<<num_blocks, block_size>>>();
+        raycast_kernel << <num_blocks, block_size >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
+        // Copy the updated screen buffer back to screenSurface->pixels
+        cudaMemcpy(screenSurface->pixels, screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyDeviceToHost);
 
-        cudaDeviceSynchronize();
+        // Update the window surface
         SDL_UpdateWindowSurface(window);
+
+        cudaFree(img_gpu);
+        cudaFree(screen_gpu);
+        cudaFree(d_p_speler);
+        cudaFree(d_r_speler);
 
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> deltaTime = end_time - start_time;
