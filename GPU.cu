@@ -1,7 +1,6 @@
 #include <SDL.h>
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include <thread>
 #include <string>
 #include <SDL_image.h>
@@ -77,7 +76,16 @@ float get_r_straal_y(int column) {
     return r_speler[1] + (2 * (column / static_cast<double>(SCREEN_WIDTH)) - 1) * r_cameravlak[1];
 }
 
-void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float i_y) {
+__device__ inline int maximum(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+__device__ inline int minimum(int a, int b) {
+    return (a < b) ? a : b;
+}
+
+
+__device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float i_y) {
     // Bereken de hoogte van het te renderen deel van de afbeelding op basis van de muurafstand
     int img_height_screen = static_cast<int>((SCREEN_HEIGHT / d_muur));
     float img_scale = (float)IMG_SIZE / img_height_screen;
@@ -98,7 +106,7 @@ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float
         img_x = (int)(IMG_SIZE * (i_y - std::floor(i_y)));
 
     // Render elke pixel van de afbeelding op de kolom op het scherm
-    for (int screen_y = std::max(render_y_begin, 0); screen_y < std::min(render_y_begin + img_height_screen, SCREEN_HEIGHT); ++screen_y, ++img_y) {
+    for (int screen_y = maximum(render_y_begin, 0); screen_y < minimum(render_y_begin + img_height_screen, SCREEN_HEIGHT); ++screen_y, ++img_y) {
         // Bereken de index van de pixel in de afbeelding
         int img_idx = (int)(img_y * img_scale) * IMG_SIZE + img_x;
         // Bereken de index op het scherm
@@ -108,70 +116,73 @@ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float
     }
 }
 
-void raycast(int column) {
-    float delta_v = 0.0;
-    float delta_h = 0.0;
-    float d_horizontaal = 0.0;
-    float d_verticaal = 0.0;
+__global__ void raycast_kernel() {
+    int column = threadIdx.x + blockDim.x * blockIdx.x;
+    if(SCREEN_WIDTH -1 >= column) {
+        float delta_v = 0.0;
+        float delta_h = 0.0;
+        float d_horizontaal = 0.0;
+        float d_verticaal = 0.0;
 
-    // Bereken de coördinaten van r_cameravlak
-    float r_straal_x = get_r_straal_x(column);
-    float r_straal_y = get_r_straal_y(column);
+        // Bereken de coördinaten van r_cameravlak
+        float r_straal_x = get_r_straal_x(column);
+        float r_straal_y = get_r_straal_y(column);
 
-    delta_v = (r_straal_x == 0) ? 1e30 : 1 / std::abs(r_straal_x);
-    delta_h = (r_straal_y == 0) ? 1e30 : 1 / std::abs(r_straal_y);
+        delta_v = (r_straal_x == 0) ? 1e30 : 1 / std::abs(r_straal_x);
+        delta_h = (r_straal_y == 0) ? 1e30 : 1 / std::abs(r_straal_y);
 
-    // Bereken d_horizontaal en d_verticaal
-    d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
-    d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+        // Bereken d_horizontaal en d_verticaal
+        d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
+        d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
 
-    bool hit = false;
-    int intersectie = 1;
-    int mapX = 0;
-    int mapY = 0;
-    float d_muur = 100;
-    float i_x, i_y;
+        bool hit = false;
+        int intersectie = 1;
+        int mapX = 0;
+        int mapY = 0;
+        float d_muur = 100;
+        float i_x, i_y;
 
-    while (!hit) {
-        if (d_verticaal >= d_horizontaal) {
-            i_x = r_straal_x * d_horizontaal + p_speler[0];
-            i_y = r_straal_y * d_horizontaal + p_speler[1];
+        while (!hit) {
+            if (d_verticaal >= d_horizontaal) {
+                i_x = r_straal_x * d_horizontaal + p_speler[0];
+                i_y = r_straal_y * d_horizontaal + p_speler[1];
 
-            if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
-                d_muur = 100;
-                hit = true;
-            }
-            else {
-                if (world_map[static_cast<int>(std::floor(i_x))][static_cast<int>(std::round(i_y) + ((r_straal_y < 0) ? -1.0 : 0.0))] > 0) {
-                    d_muur = d_horizontaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
+                    d_muur = 100;
                     hit = true;
                 }
-            }
-            mapX++;
-            d_horizontaal += delta_h;
-        }
-        else {
-            i_x = r_straal_x * d_verticaal + p_speler[0];
-            i_y = r_straal_y * d_verticaal + p_speler[1];
-
-            if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
-                d_muur = 100;
-                intersectie = 0;
-                hit = true;
+                else {
+                    if (world_map[static_cast<int>(std::floor(i_x))][static_cast<int>(std::round(i_y) + ((r_straal_y < 0) ? -1.0 : 0.0))] > 0) {
+                        d_muur = d_horizontaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                        hit = true;
+                    }
+                }
+                mapX++;
+                d_horizontaal += delta_h;
             }
             else {
-                if (world_map[static_cast<int>(std::round(i_x) + ((r_straal_x < 0) ? -1.0 : 0.0))][static_cast<int>(std::floor(i_y))] > 0) {
-                    d_muur = d_verticaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                i_x = r_straal_x * d_verticaal + p_speler[0];
+                i_y = r_straal_y * d_verticaal + p_speler[1];
+
+                if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
+                    d_muur = 100;
                     intersectie = 0;
                     hit = true;
                 }
+                else {
+                    if (world_map[static_cast<int>(std::round(i_x) + ((r_straal_x < 0) ? -1.0 : 0.0))][static_cast<int>(std::floor(i_y))] > 0) {
+                        d_muur = d_verticaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                        intersectie = 0;
+                        hit = true;
+                    }
+                }
+                mapY++;
+                d_verticaal += delta_v;
             }
-            mapY++;
-            d_verticaal += delta_v;
-        }
 
+        }
+        renderImageKolom(column, d_muur, intersectie, i_x, i_y);
     }
-    renderImageKolom(column, d_muur, intersectie, i_x, i_y);
 }
 
 // Functie om spelerbeweging te verwerken
@@ -273,10 +284,13 @@ int main(int argc, char* args[]) {
             ((Uint32*)screenSurface->pixels)[pixel_idx] = 0xFFFFFFFF;
         }
 
-        for (int column = 0; column <= SCREEN_WIDTH - 1; column++) {
-            raycast(column);
-        }
+        int block_size = 256; // TODO: kan dit tot schermbreedte?
+        int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1/block_size;
 
+        raycast_kernel<<<num_blocks, block_size>>>();
+
+
+        cudaDeviceSynchronize();
         SDL_UpdateWindowSurface(window);
 
         auto end_time = std::chrono::high_resolution_clock::now();

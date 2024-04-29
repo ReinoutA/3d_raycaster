@@ -1,1 +1,174 @@
-﻿  SDLtest_CUDA.vcxproj -> C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\x64\Debug\SDLtest_CUDA.exe
+﻿  Compiling CUDA source file GPU.cu...
+  
+  C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.37.32822\bin\HostX64\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include"  -G   --keep-dir x64\Debug  -maxrregcount=0   --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -Xcompiler "/Fdx64\Debug\vc143.pdb" -o C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\x64\Debug\GPU.cu.obj "C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu" 
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(25): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
+                         ^
+  
+  Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(25): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
+                                             ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(26): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
+                         ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(26): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
+                                       ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(27): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_cameravlak[] = { -1 / sqrt(2) , -1 / sqrt(2) };
+                             ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(27): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_cameravlak[] = { -1 / sqrt(2) , -1 / sqrt(2) };
+                                            ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(25): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
+                         ^
+  
+  Remark: The warnings can be suppressed with "-diag-suppress <warning-number>"
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(25): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
+                                             ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(26): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
+                         ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(26): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
+                                       ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(27): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_cameravlak[] = { -1 / sqrt(2) , -1 / sqrt(2) };
+                             ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(27): warning #2361-D: invalid narrowing conversion from "double" to "float"
+    float r_cameravlak[] = { -1 / sqrt(2) , -1 / sqrt(2) };
+                                            ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(115): warning #20094-D: a host variable "screenSurface" cannot be directly read in a device function
+            ((Uint32*)screenSurface->pixels)[screen_idx] = img[img_idx];
+                      ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(115): warning #20094-D: a host variable "img" cannot be directly read in a device function
+            ((Uint32*)screenSurface->pixels)[screen_idx] = img[img_idx];
+                                                           ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
+                                                                         ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
+                                                ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
+                                                                                                                                 ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_horizontaal = (r_straal_y < 0) ? (p_speler[1] - std::floor(p_speler[1])) * delta_h : (1 - p_speler[1] + std::floor(p_speler[1])) * delta_h;
+                                                                                                        ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+                                                                       ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+                                              ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+                                                                                                                               ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+            d_verticaal = (r_straal_x < 0) ? (p_speler[0] - std::floor(p_speler[0])) * delta_v : (1 - p_speler[0] + std::floor(p_speler[0])) * delta_v;
+                                                                                                      ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(147): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+                    i_x = r_straal_x * d_horizontaal + p_speler[0];
+                                                       ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(148): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+                    i_y = r_straal_y * d_horizontaal + p_speler[1];
+                                                       ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(156): warning #20094-D: a host variable "r_speler" cannot be directly read in a device function
+                            d_muur = d_horizontaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                                                                                              ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(156): warning #20094-D: a host variable "r_speler" cannot be directly read in a device function
+                            d_muur = d_horizontaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                                                                   ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(164): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+                    i_x = r_straal_x * d_verticaal + p_speler[0];
+                                                     ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(165): warning #20094-D: a host variable "p_speler" cannot be directly read in a device function
+                    i_y = r_straal_y * d_verticaal + p_speler[1];
+                                                     ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(174): warning #20094-D: a host variable "r_speler" cannot be directly read in a device function
+                            d_muur = d_verticaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                                                                                            ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(174): warning #20094-D: a host variable "r_speler" cannot be directly read in a device function
+                            d_muur = d_verticaal * (r_straal_x * r_speler[0] + r_straal_y * r_speler[1]);
+                                                                 ^
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(115): error : identifier "img" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(115): error : identifier "screenSurface" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(128): error : calling a __host__ function("get_r_straal_x(int)") from a __global__ function("raycast_kernel") is not allowed
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(128): error : identifier "get_r_straal_x" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(129): error : calling a __host__ function("get_r_straal_y(int)") from a __global__ function("raycast_kernel") is not allowed
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(129): error : identifier "get_r_straal_y" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(135): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(136): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(147): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(148): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(156): error : identifier "r_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(156): error : identifier "r_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(164): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(165): error : identifier "p_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(174): error : identifier "r_speler" is undefined in device code
+  
+C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu(174): error : identifier "r_speler" is undefined in device code
+  
+  22 errors detected in the compilation of "C:/ELICT4/Geavanceerde_Computerarchitectuur/Project/Raycaster/GPU.cu".
+  GPU.cu
+C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\BuildCustomizations\CUDA 12.4.targets(799,9): error MSB3721: The command ""C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\bin\nvcc.exe" -gencode=arch=compute_52,code=\"sm_52,compute_52\" --use-local-env -ccbin "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.37.32822\bin\HostX64\x64" -x cu   -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4\include"  -G   --keep-dir x64\Debug  -maxrregcount=0   --machine 64 --compile -cudart static  -g  -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -Xcompiler "/Fdx64\Debug\vc143.pdb" -o C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\x64\Debug\GPU.cu.obj "C:\ELICT4\Geavanceerde_Computerarchitectuur\Project\Raycaster\GPU.cu"" exited with code 1.
