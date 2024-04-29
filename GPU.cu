@@ -33,12 +33,15 @@ void initializeWorldMap() {
         return;
     }
 
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            fscanf(file, "%d", &world_map[i][j]);
+    int temp[world_map_len][world_map_len];
+    for (int i = 0; i < world_map_len; i++) {
+        for (int j = 0; j < world_map_len; j++) {
+            fscanf(file, "%d", &temp[i][j]);
         }
     }
     fclose(file);
+
+    cudaMemcpyToSymbol(world_map, temp, sizeof(int) * world_map_len * world_map_len);
 }
 
 void setupWindow() {
@@ -115,7 +118,6 @@ __device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float
         screen_gpu[screen_idx] = img_gpu[img_idx];
     }
 }
-
 
 __global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int column = threadIdx.x + blockDim.x * blockIdx.x;
@@ -285,6 +287,8 @@ int main(int argc, char* args[]) {
         for (int pixel_idx = 0; pixel_idx < SCREEN_WIDTH * SCREEN_HEIGHT; ++pixel_idx) {
             ((Uint32*)screenSurface->pixels)[pixel_idx] = 0xFFFFFFFF;
         }
+
+
 
         // GPU
         Uint32* img_gpu;
