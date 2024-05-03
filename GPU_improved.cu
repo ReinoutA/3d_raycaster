@@ -123,6 +123,87 @@ __device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float
     }
 }
 
+__global__ void raycast_kernel_coalesced(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    int totalThreads = gridDim.x * blockDim.x;
+
+    int elementsPerThread = (SCREEN_WIDTH + totalThreads - 1) / totalThreads;
+    int startColumn = idx * elementsPerThread;
+    int endColumn = startColumn + elementsPerThread;
+
+    for (int column = startColumn; column < endColumn; ++column) {
+        if (column >= SCREEN_WIDTH) break;
+        for (int row = 0; row < SCREEN_HEIGHT; row++) {
+            int pixel_idx = column + row * SCREEN_WIDTH;
+            screen_gpu[pixel_idx] = 0xFFFFFFFF;
+        }
+
+        float delta_v = 0.0;
+        float delta_h = 0.0;
+        float d_horizontaal = 0.0;
+        float d_verticaal = 0.0;
+
+        // Bereken de coördinaten van r_cameravlak
+        float r_straal_x = get_r_straal_x(column, d_r_speler, d_r_cameravlak);
+        float r_straal_y = get_r_straal_y(column, d_r_speler, d_r_cameravlak);
+
+        delta_v = (r_straal_x == 0) ? 1e30 : 1 / std::abs(r_straal_x);
+        delta_h = (r_straal_y == 0) ? 1e30 : 1 / std::abs(r_straal_y);
+
+        // Bereken d_horizontaal en d_verticaal
+        d_horizontaal = (r_straal_y < 0) ? (d_p_speler[1] - std::floor(d_p_speler[1])) * delta_h : (1 - d_p_speler[1] + std::floor(d_p_speler[1])) * delta_h;
+        d_verticaal = (r_straal_x < 0) ? (d_p_speler[0] - std::floor(d_p_speler[0])) * delta_v : (1 - d_p_speler[0] + std::floor(d_p_speler[0])) * delta_v;
+
+        bool hit = false;
+        int intersectie = 1;
+        int mapX = 0;
+        int mapY = 0;
+        float d_muur = 100;
+        float i_x, i_y;
+
+        while (!hit) {
+            if (d_verticaal >= d_horizontaal) {
+                i_x = r_straal_x * d_horizontaal + d_p_speler[0];
+                i_y = r_straal_y * d_horizontaal + d_p_speler[1];
+
+                if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
+                    d_muur = 100;
+                    hit = true;
+                }
+                else {
+                    if (world_map[static_cast<int>(std::floor(i_x))][static_cast<int>(std::round(i_y) + ((r_straal_y < 0) ? -1.0 : 0.0))] > 0) {
+                        d_muur = d_horizontaal * (r_straal_x * d_r_speler[0] + r_straal_y * d_r_speler[1]);
+                        hit = true;
+                    }
+                }
+                mapX++;
+                d_horizontaal += delta_h;
+            }
+            else {
+                i_x = r_straal_x * d_verticaal + p_speler[0];
+                i_y = r_straal_y * d_verticaal + p_speler[1];
+
+                if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
+                    d_muur = 100;
+                    intersectie = 0;
+                    hit = true;
+                }
+                else {
+                    if (world_map[static_cast<int>(std::round(i_x) + ((r_straal_x < 0) ? -1.0 : 0.0))][static_cast<int>(std::floor(i_y))] > 0) {
+                        d_muur = d_verticaal * (r_straal_x * d_r_speler[0] + r_straal_y * d_r_speler[1]);
+                        intersectie = 0;
+                        hit = true;
+                    }
+                }
+                mapY++;
+                d_verticaal += delta_v;
+            }
+
+        }
+        renderImageKolom(column, d_muur, intersectie, i_x, i_y, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu);
+    }
+}
+
 __global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     int threadCount = gridDim.x * blockDim.x;
@@ -130,7 +211,7 @@ __global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_
 
     for (int column = idx; column < SCREEN_WIDTH; column += threadCount) {
 
-        for (int row = 0; row < SCREEN_HEIGHT; ++row) {
+        for (int row = 0; row < SCREEN_HEIGHT; row++) {
             int pixel_idx = column + row * SCREEN_WIDTH;
             screen_gpu[pixel_idx] = 0xFFFFFFFF;
         }
@@ -320,8 +401,8 @@ int main(int argc, char* args[]) {
         cudaMemcpy(d_p_speler, p_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
         cudaMemcpy(d_r_speler, r_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
         cudaMemcpy(d_r_cameravlak, r_cameravlak, sizeof(float) * 2, cudaMemcpyHostToDevice);
-        
 
+        //raycast_kernel_coalesced << <NUM_BLOCKS, BLOCK_SIZE >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
         raycast_kernel << <NUM_BLOCKS, BLOCK_SIZE >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
         // Copy the updated screen buffer back to screenSurface->pixels
