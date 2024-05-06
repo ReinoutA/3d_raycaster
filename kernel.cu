@@ -1,18 +1,17 @@
-﻿/*
-#include <SDL.h>
+﻿#include <SDL.h>
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include <thread>
 #include <string>
 #include <SDL_image.h>
 #include <stdio.h>
 #include <sstream>
+#include <cuda_runtime.h>
+#include <algorithm>
 #undef main
 
-
 const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_HEIGHT = 650;
 const int IMG_SIZE = 512;
 SDL_Window* window;
 SDL_Surface* screenSurface;
@@ -20,9 +19,9 @@ Uint32* img;
 
 int frame_rate = 0;
 double elapsed_time = 0.0;
-int world_map[5][5];
+int world_map[15][15];
 
-int world_map_len = 5;
+int world_map_len = 15;
 float p_speler[] = { 3, 3 };
 float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
 float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
@@ -35,8 +34,8 @@ void initializeWorldMap() {
         return;
     }
 
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
+    for (int i = 0; i < world_map_len; i++) {
+        for (int j = 0; j < world_map_len; j++) {
             fscanf(file, "%d", &world_map[i][j]);
         }
     }
@@ -255,7 +254,7 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("doom.png");
+    getImage("muur.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;
@@ -291,4 +290,3 @@ int main(int argc, char* args[]) {
 
     return 0;
 }
-*/
