@@ -7,10 +7,11 @@
 #include <stdio.h>
 #include <sstream>
 #include <cuda_runtime.h>
+#include <algorithm>
 #undef main
 
 const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_HEIGHT = 650;
 const int IMG_SIZE = 512;
 
 const int BLOCK_SIZE = 512;
@@ -119,7 +120,6 @@ __device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float
         // Bereken de index op het scherm
         int screen_idx = kolom + SCREEN_WIDTH * screen_y;
         // Kopieer de pixelwaarde van de afbeelding naar het scherm
-        std::cout << img_gpu[img_idx] << std::endl;
         screen_gpu[screen_idx] = img_gpu[img_idx];
     }
 }
@@ -208,7 +208,7 @@ __global__ void raycast_kernel_coalesced(Uint32* screen_gpu, int SCREEN_WIDTH, i
 __global__ void raycast_kernel(Uint32* screen_gpu, int SCREEN_HEIGHT, int SCREEN_WIDTH, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     int threadCount = gridDim.x * blockDim.x;
-    
+
 
     for (int column = idx; column < SCREEN_WIDTH; column += threadCount) {
 
@@ -383,7 +383,7 @@ int main(int argc, char* args[]) {
     Uint32* screen_gpu;
     cudaMalloc((void**)&screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT);
     cudaMemcpy(screen_gpu, screenSurface->pixels, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyHostToDevice);
-    
+
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
