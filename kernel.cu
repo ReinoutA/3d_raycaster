@@ -10,9 +10,10 @@
 #include <algorithm>
 #undef main
 
+
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 650;
-const int IMG_SIZE = 512;
+const int IMG_SIZE = 2048;
 SDL_Window* window;
 SDL_Surface* screenSurface;
 Uint32* img;
@@ -53,8 +54,9 @@ void setupWindow() {
     }
 
     screenSurface = SDL_GetWindowSurface(window);
-    //SDL_FillRect(screenSurface, nullptr, SDL_MapRGB(screenSurface->format, 0xFF, 0xFF, 0xFF));
+    SDL_FillRect(screenSurface, nullptr, SDL_MapRGB(screenSurface->format, 0xFF, 0xFF, 0xFF)); // Fill with white color
 }
+
 
 Uint32* loadImage(const char* file) {
     SDL_Surface* img = IMG_Load(file);
@@ -104,6 +106,7 @@ void renderImageKolom(int kolom, float d_muur, int intersectie, float i_x, float
         // Bereken de index op het scherm
         int screen_idx = kolom + SCREEN_WIDTH * screen_y;
         // Kopieer de pixelwaarde van de afbeelding naar het scherm
+
         ((Uint32*)screenSurface->pixels)[screen_idx] = img[img_idx];
     }
 }
@@ -254,7 +257,8 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("muur.png");
+    std::string filename = "img_" + std::to_string(IMG_SIZE) + ".png";
+    getImage(filename.c_str());
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;
@@ -266,16 +270,17 @@ int main(int argc, char* args[]) {
                 quit = true;
             }
         }
-
+        
         handleMovement(e);
 
         for (int pixel_idx = 0; pixel_idx < SCREEN_WIDTH * SCREEN_HEIGHT; ++pixel_idx) {
             ((Uint32*)screenSurface->pixels)[pixel_idx] = 0xFFFFFFFF;
         }
-
+        
         for (int column = 0; column <= SCREEN_WIDTH - 1; column++) {
             raycast(column);
         }
+        
 
         SDL_UpdateWindowSurface(window);
 
