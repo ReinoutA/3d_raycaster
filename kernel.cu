@@ -8,6 +8,7 @@
 #include <SDL_image.h>
 #include <stdio.h>
 #include <sstream>
+#include <fstream>
 #undef main
 
 
@@ -20,9 +21,9 @@ Uint32* img;
 
 int frame_rate = 0;
 double elapsed_time = 0.0;
-int world_map[5][5];
-
-int world_map_len = 5;
+int world_map[15][15];
+std::vector<double> fps_history;
+int world_map_len = 15;
 float p_speler[] = { 3, 3 };
 float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
 float r_speler[] = { 1 / sqrt(2) , -1 / sqrt(2) };
@@ -35,8 +36,8 @@ void initializeWorldMap() {
         return;
     }
 
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
+    for (int i = 0; i < 15; i++) {
+        for (int j = 0; j < 15; j++) {
             fscanf(file, "%d", &world_map[i][j]);
         }
     }
@@ -241,11 +242,34 @@ void calculateAndSetFPSTitle(double deltaTime) {
 
     if (elapsed_time >= 1.0) {
         float frame_rate_per_sec = static_cast<double>(frame_rate) / elapsed_time;
+        fps_history.push_back(frame_rate_per_sec); // Voeg de huidige fps toe aan de geschiedenis
+        if (fps_history.size() > 1) { // Houd slechts de fps van de afgelopen 10 seconden bij
+            fps_history.erase(fps_history.begin());
+        }
 
+        // Bereken gemiddelde FPS van de afgelopen 10 seconden
+        double sum = 0.0;
+        for (double fps : fps_history) {
+            sum += fps;
+        }
+        double average_fps = sum / fps_history.size();
+
+        // Open het bestand in append-modus en schrijf het gemiddelde FPS
+        std::ofstream outfile("gemiddelde_fps.txt", std::ios::app);
+        if (outfile.is_open()) {
+            outfile << average_fps << std::endl;
+            outfile.close();
+        }
+        else {
+            std::cerr << "Kon gemiddelde_fps.txt niet openen voor schrijven!" << std::endl;
+        }
+
+        // Stel de venstertitel in met de huidige FPS
         std::stringstream stream;
         stream << "Frame Rate: " << static_cast<int>(frame_rate_per_sec);
         SDL_SetWindowTitle(window, stream.str().c_str());
 
+        // Reset frame_rate en elapsed_time voor de volgende meting
         frame_rate = 0;
         elapsed_time = 0.0;
     }
@@ -255,7 +279,7 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("doom.png");
+    getImage("muur.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;

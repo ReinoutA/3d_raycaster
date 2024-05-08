@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <cuda_runtime.h>
+#include <fstream>
 #undef main
 
 const int SCREEN_WIDTH = 1280;
@@ -23,7 +24,7 @@ Uint32* img;
 int frame_rate = 0;
 double elapsed_time = 0.0;
 __constant__ int world_map[15][15];
-
+std::vector<double> fps_history;
 const int world_map_len = 15;
 float p_speler[] = { 3, 3 };
 float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
@@ -47,6 +48,8 @@ void initializeWorldMap() {
 
     cudaMemcpyToSymbol(world_map, temp, sizeof(int) * world_map_len * world_map_len);
 }
+
+
 
 void setupWindow() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -347,15 +350,66 @@ void calculateAndSetFPSTitle(double deltaTime) {
     frame_rate++;
     elapsed_time += deltaTime;
 
-    if (elapsed_time >= 1.0) {
+    if (elapsed_time >= 10.0) {
         float frame_rate_per_sec = static_cast<double>(frame_rate) / elapsed_time;
+        fps_history.push_back(frame_rate_per_sec); // Voeg de huidige fps toe aan de geschiedenis
+        if (fps_history.size() > 10) { // Houd slechts de fps van de afgelopen 10 seconden bij
+            fps_history.erase(fps_history.begin());
+        }
 
+        // Bereken gemiddelde FPS van de afgelopen 10 seconden
+        double sum = 0.0;
+        for (double fps : fps_history) {
+            sum += fps;
+        }
+        double average_fps = sum / fps_history.size();
+
+        // Open het bestand in append-modus en schrijf het gemiddelde FPS
+        std::ofstream outfile("gemiddelde_fps.txt", std::ios::app);
+        if (outfile.is_open()) {
+            outfile << average_fps << std::endl;
+            outfile.close();
+        }
+        else {
+            std::cerr << "Kon gemiddelde_fps.txt niet openen voor schrijven" << std::endl;
+        }
+
+        // Stel de venstertitel in met de huidige FPS
         std::stringstream stream;
         stream << "Frame Rate: " << static_cast<int>(frame_rate_per_sec);
         SDL_SetWindowTitle(window, stream.str().c_str());
 
+        // Reset frame_rate en elapsed_time voor de volgende meting
         frame_rate = 0;
         elapsed_time = 0.0;
+    }
+}
+
+std::chrono::high_resolution_clock::time_point last_blocksize_update = std::chrono::high_resolution_clock::now();
+int block_size = 500;
+bool blocksize_written = false; // Om bij te houden of blocksize al is weggeschreven
+void updateBlockSize() {
+    auto current_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_time = current_time - last_blocksize_update;
+    if (elapsed_time.count() >= 3.0) {
+        block_size += 1; // Incrementeer de blocksize
+        last_blocksize_update = current_time; // Update de tijd van de laatste blocksize-update
+        blocksize_written = false; // Reset de flag zodat er opnieuw geschreven kan worden voor de nieuwe blocksize
+    }
+}
+
+// Functie om FPS en blocksize naar een CSV-bestand te schrijven
+void writeFPSAndBlockSizeToCSV(double fps) {
+    if (!blocksize_written) { // Schrijf alleen als blocksize nog niet is weggeschreven
+        std::ofstream csv_file("fps_blocksize.csv", std::ios::app);
+        if (csv_file.is_open()) {
+            csv_file << fps << "," << block_size << "\n";
+            csv_file.close();
+            blocksize_written = true; // Update de flag om aan te geven dat blocksize is weggeschreven
+        }
+        else {
+            std::cerr << "Unable to open CSV file for writing!" << std::endl;
+        }
     }
 }
 
@@ -385,15 +439,14 @@ int main(int argc, char* args[]) {
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    int block_size = 512; // TODO: kan dit tot schermbreedte?
-    int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1 / block_size;
-    std::cout << num_blocks;
+
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             }
         }
+        updateBlockSize();
 
         handleMovement(e);
 
@@ -403,7 +456,7 @@ int main(int argc, char* args[]) {
         cudaMemcpy(d_r_cameravlak, r_cameravlak, sizeof(float) * 2, cudaMemcpyHostToDevice);
 
         //raycast_kernel_coalesced << <NUM_BLOCKS, BLOCK_SIZE >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
-        raycast_kernel << <NUM_BLOCKS, BLOCK_SIZE >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
+        raycast_kernel << <NUM_BLOCKS, block_size >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
         // Copy the updated screen buffer back to screenSurface->pixels
         cudaMemcpy(screenSurface->pixels, screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyDeviceToHost);
@@ -415,8 +468,10 @@ int main(int argc, char* args[]) {
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> deltaTime = end_time - start_time;
         start_time = end_time;
-
         calculateAndSetFPSTitle(deltaTime.count());
+
+        double fps = 1.0 / deltaTime.count();
+        writeFPSAndBlockSizeToCSV(fps);
     }
     cudaFree(screen_gpu);
     cudaFree(d_r_speler);

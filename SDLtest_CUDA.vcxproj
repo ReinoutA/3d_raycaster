@@ -80,6 +80,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="GPU.cu" />
+    <CudaCompile Include="GPU_improved.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
