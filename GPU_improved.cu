@@ -7,11 +7,13 @@
 #include <stdio.h>
 #include <sstream>
 #include <cuda_runtime.h>
-#include <fstream>
+#include <algorithm>
 #undef main
+#include <fstream>
+
 
 const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+const int SCREEN_HEIGHT = 650;
 const int IMG_SIZE = 512;
 
 const int BLOCK_SIZE = 512;
@@ -49,8 +51,6 @@ void initializeWorldMap() {
     cudaMemcpyToSymbol(world_map, temp, sizeof(int) * world_map_len * world_map_len);
 }
 
-
-
 void setupWindow() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
@@ -71,11 +71,39 @@ Uint32* loadImage(const char* file) {
     return static_cast<Uint32*>(img->pixels);
 }
 
+void swapRBComponents(Uint32& pixel) {
+    // Extract the red, green, and blue components
+    Uint8 r, g, b, a;
+    SDL_GetRGBA(pixel, SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32), &r, &g, &b, &a);
+
+    // Swap red and blue components
+    Uint8 temp = r;
+    r = b;
+    b = temp;
+
+    // Recreate the pixel with swapped components
+    pixel = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32), r, g, b, a);
+}
+
+void swapRBComponentsInImage(Uint32* img, int width, int height) {
+    int totalPixels = width * height;
+    for (int i = 0; i < totalPixels; ++i) {
+        swapRBComponents(img[i]);
+    }
+}
+
+// Example usage:
 void getImage(const char* file) {
     img = loadImage(file);
-    if (img == NULL) {
+    if (img == nullptr) {
         std::cout << "img was nullptr";
+        return;
     }
+
+    int width = IMG_SIZE;
+    int height = IMG_SIZE;
+
+    swapRBComponentsInImage(img, width, height);
 }
 
 __device__ float get_r_straal_x(int column, float* d_r_speler, float* d_r_cameravlak) {
@@ -126,7 +154,7 @@ __device__ void renderImageKolom(int kolom, float d_muur, int intersectie, float
     }
 }
 
-__global__ void raycast_kernel_coalesced(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
+__global__ void raycast_kernel_coalesced(Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     int totalThreads = gridDim.x * blockDim.x;
 
@@ -183,8 +211,8 @@ __global__ void raycast_kernel_coalesced(float* p_speler, float* r_speler, Uint3
                 d_horizontaal += delta_h;
             }
             else {
-                i_x = r_straal_x * d_verticaal + p_speler[0];
-                i_y = r_straal_y * d_verticaal + p_speler[1];
+                i_x = r_straal_x * d_verticaal + d_p_speler[0];
+                i_y = r_straal_y * d_verticaal + d_p_speler[1];
 
                 if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
                     d_muur = 100;
@@ -207,10 +235,10 @@ __global__ void raycast_kernel_coalesced(float* p_speler, float* r_speler, Uint3
     }
 }
 
-__global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
+__global__ void raycast_kernel(Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     int threadCount = gridDim.x * blockDim.x;
-    
+
 
     for (int column = idx; column < SCREEN_WIDTH; column += threadCount) {
 
@@ -261,8 +289,8 @@ __global__ void raycast_kernel(float* p_speler, float* r_speler, Uint32* screen_
                 d_horizontaal += delta_h;
             }
             else {
-                i_x = r_straal_x * d_verticaal + p_speler[0];
-                i_y = r_straal_y * d_verticaal + p_speler[1];
+                i_x = r_straal_x * d_verticaal + d_p_speler[0];
+                i_y = r_straal_y * d_verticaal + d_p_speler[1];
 
                 if (mapX > (world_map_len - 1) || mapX < 0 || mapY >(world_map_len - 1) || mapY < 0) {
                     d_muur = 100;
@@ -385,44 +413,17 @@ void calculateAndSetFPSTitle(double deltaTime) {
     }
 }
 
-std::chrono::high_resolution_clock::time_point last_blocksize_update = std::chrono::high_resolution_clock::now();
-int block_size = 500;
-bool blocksize_written = false; // Om bij te houden of blocksize al is weggeschreven
-void updateBlockSize() {
-    auto current_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_time = current_time - last_blocksize_update;
-    if (elapsed_time.count() >= 3.0) {
-        block_size += 1; // Incrementeer de blocksize
-        last_blocksize_update = current_time; // Update de tijd van de laatste blocksize-update
-        blocksize_written = false; // Reset de flag zodat er opnieuw geschreven kan worden voor de nieuwe blocksize
-    }
-}
-
-// Functie om FPS en blocksize naar een CSV-bestand te schrijven
-void writeFPSAndBlockSizeToCSV(double fps) {
-    if (!blocksize_written) { // Schrijf alleen als blocksize nog niet is weggeschreven
-        std::ofstream csv_file("fps_blocksize.csv", std::ios::app);
-        if (csv_file.is_open()) {
-            csv_file << fps << "," << block_size << "\n";
-            csv_file.close();
-            blocksize_written = true; // Update de flag om aan te geven dat blocksize is weggeschreven
-        }
-        else {
-            std::cerr << "Unable to open CSV file for writing!" << std::endl;
-        }
-    }
-}
-
 int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("muur.png");
+    getImage("img_512.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;
 
     // GPU
+
     float* d_p_speler;
     cudaMalloc((void**)&d_p_speler, sizeof(float) * 2);
     float* d_r_speler;
@@ -435,18 +436,15 @@ int main(int argc, char* args[]) {
     Uint32* screen_gpu;
     cudaMalloc((void**)&screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT);
     cudaMemcpy(screen_gpu, screenSurface->pixels, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyHostToDevice);
-    
+
 
     auto start_time = std::chrono::high_resolution_clock::now();
-
-
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
                 quit = true;
             }
         }
-        updateBlockSize();
 
         handleMovement(e);
 
@@ -455,8 +453,8 @@ int main(int argc, char* args[]) {
         cudaMemcpy(d_r_speler, r_speler, sizeof(float) * 2, cudaMemcpyHostToDevice);
         cudaMemcpy(d_r_cameravlak, r_cameravlak, sizeof(float) * 2, cudaMemcpyHostToDevice);
 
-        //raycast_kernel_coalesced << <NUM_BLOCKS, BLOCK_SIZE >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
-        raycast_kernel << <NUM_BLOCKS, block_size >> > (d_p_speler, d_r_speler, screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
+        //raycast_kernel_coalesced << <NUM_BLOCKS, BLOCK_SIZE >> > (screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
+        raycast_kernel << <NUM_BLOCKS, BLOCK_SIZE >> > (screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
         // Copy the updated screen buffer back to screenSurface->pixels
         cudaMemcpy(screenSurface->pixels, screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyDeviceToHost);
@@ -468,10 +466,8 @@ int main(int argc, char* args[]) {
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> deltaTime = end_time - start_time;
         start_time = end_time;
-        calculateAndSetFPSTitle(deltaTime.count());
 
-        double fps = 1.0 / deltaTime.count();
-        writeFPSAndBlockSizeToCSV(fps);
+        calculateAndSetFPSTitle(deltaTime.count());
     }
     cudaFree(screen_gpu);
     cudaFree(d_r_speler);
