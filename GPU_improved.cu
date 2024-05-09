@@ -9,6 +9,8 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 #undef main
+#include <fstream>
+
 
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 650;
@@ -24,7 +26,7 @@ Uint32* img;
 int frame_rate = 0;
 double elapsed_time = 0.0;
 __constant__ int world_map[15][15];
-
+std::vector<double> fps_history;
 const int world_map_len = 15;
 float p_speler[] = { 3, 3 };
 float r_straal[] = { 1.0 / std::sqrt(2), -1.0 / std::sqrt(2) };
@@ -69,11 +71,39 @@ Uint32* loadImage(const char* file) {
     return static_cast<Uint32*>(img->pixels);
 }
 
+void swapRBComponents(Uint32& pixel) {
+    // Extract the red, green, and blue components
+    Uint8 r, g, b, a;
+    SDL_GetRGBA(pixel, SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32), &r, &g, &b, &a);
+
+    // Swap red and blue components
+    Uint8 temp = r;
+    r = b;
+    b = temp;
+
+    // Recreate the pixel with swapped components
+    pixel = SDL_MapRGBA(SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32), r, g, b, a);
+}
+
+void swapRBComponentsInImage(Uint32* img, int width, int height) {
+    int totalPixels = width * height;
+    for (int i = 0; i < totalPixels; ++i) {
+        swapRBComponents(img[i]);
+    }
+}
+
+// Example usage:
 void getImage(const char* file) {
     img = loadImage(file);
-    if (img == NULL) {
+    if (img == nullptr) {
         std::cout << "img was nullptr";
+        return;
     }
+
+    int width = IMG_SIZE;
+    int height = IMG_SIZE;
+
+    swapRBComponentsInImage(img, width, height);
 }
 
 __device__ float get_r_straal_x(int column, float* d_r_speler, float* d_r_cameravlak) {
@@ -205,7 +235,7 @@ __global__ void raycast_kernel_coalesced(Uint32* screen_gpu, int SCREEN_WIDTH, i
     }
 }
 
-__global__ void raycast_kernel(Uint32* screen_gpu, int SCREEN_HEIGHT, int SCREEN_WIDTH, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
+__global__ void raycast_kernel(Uint32* screen_gpu, int SCREEN_WIDTH, int SCREEN_HEIGHT, Uint32* img_gpu, float* d_p_speler, float* d_r_speler, float* d_r_cameravlak) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
     int threadCount = gridDim.x * blockDim.x;
 
@@ -348,13 +378,36 @@ void calculateAndSetFPSTitle(double deltaTime) {
     frame_rate++;
     elapsed_time += deltaTime;
 
-    if (elapsed_time >= 1.0) {
+    if (elapsed_time >= 10.0) {
         float frame_rate_per_sec = static_cast<double>(frame_rate) / elapsed_time;
+        fps_history.push_back(frame_rate_per_sec); // Voeg de huidige fps toe aan de geschiedenis
+        if (fps_history.size() > 10) { // Houd slechts de fps van de afgelopen 10 seconden bij
+            fps_history.erase(fps_history.begin());
+        }
 
+        // Bereken gemiddelde FPS van de afgelopen 10 seconden
+        double sum = 0.0;
+        for (double fps : fps_history) {
+            sum += fps;
+        }
+        double average_fps = sum / fps_history.size();
+
+        // Open het bestand in append-modus en schrijf het gemiddelde FPS
+        std::ofstream outfile("gemiddelde_fps.txt", std::ios::app);
+        if (outfile.is_open()) {
+            outfile << average_fps << std::endl;
+            outfile.close();
+        }
+        else {
+            std::cerr << "Kon gemiddelde_fps.txt niet openen voor schrijven" << std::endl;
+        }
+
+        // Stel de venstertitel in met de huidige FPS
         std::stringstream stream;
         stream << "Frame Rate: " << static_cast<int>(frame_rate_per_sec);
         SDL_SetWindowTitle(window, stream.str().c_str());
 
+        // Reset frame_rate en elapsed_time voor de volgende meting
         frame_rate = 0;
         elapsed_time = 0.0;
     }
@@ -364,7 +417,7 @@ int main(int argc, char* args[]) {
 
     setupWindow();
 
-    getImage("muur.png");
+    getImage("img_512.png");
     initializeWorldMap();
     bool quit = false;
     SDL_Event e;
@@ -386,10 +439,6 @@ int main(int argc, char* args[]) {
 
 
     auto start_time = std::chrono::high_resolution_clock::now();
-
-    int block_size = 512; // TODO: kan dit tot schermbreedte?
-    int num_blocks = (block_size + SCREEN_WIDTH - 1) * 1 / block_size;
-    std::cout << num_blocks;
     while (!quit) {
         while (SDL_PollEvent(&e) != 0) {
             if (e.type == SDL_QUIT) {
@@ -405,7 +454,7 @@ int main(int argc, char* args[]) {
         cudaMemcpy(d_r_cameravlak, r_cameravlak, sizeof(float) * 2, cudaMemcpyHostToDevice);
 
         //raycast_kernel_coalesced << <NUM_BLOCKS, BLOCK_SIZE >> > (screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
-        raycast_kernel << <NUM_BLOCKS, BLOCK_SIZE >> > (screen_gpu, SCREEN_HEIGHT, SCREEN_WIDTH, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
+        raycast_kernel << <NUM_BLOCKS, BLOCK_SIZE >> > (screen_gpu, SCREEN_WIDTH, SCREEN_HEIGHT, img_gpu, d_p_speler, d_r_speler, d_r_cameravlak);
 
         // Copy the updated screen buffer back to screenSurface->pixels
         cudaMemcpy(screenSurface->pixels, screen_gpu, sizeof(Uint32) * SCREEN_WIDTH * SCREEN_HEIGHT, cudaMemcpyDeviceToHost);
